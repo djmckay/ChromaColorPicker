@@ -27,6 +27,7 @@ import UIKit
 public protocol ChromaColorPickerDelegate {
     /* Called when the user taps the add button in the center */
     func colorPickerDidChooseColor(_ colorPicker: ChromaColorPicker, color: UIColor)
+    func colorPickerDidChangeColor(_ colorPicker: ChromaColorPicker, color: UIColor)
 }
 
 open class ChromaColorPicker: UIControl {
@@ -45,7 +46,7 @@ open class ChromaColorPicker: UIControl {
         case grayscale
     }
     
-    open private(set) var currentColor = UIColor.red
+    open private(set) var currentColor = UIColor.black
     open var supportsShadesOfGray: Bool = false {
         didSet {
             if supportsShadesOfGray {
@@ -62,7 +63,7 @@ open class ChromaColorPicker: UIControl {
     open var stroke: CGFloat = 1
     open var padding: CGFloat = 15
     open var handleSize: CGSize{
-        get{ return CGSize(width: self.bounds.width * 0.1, height: self.bounds.height * 0.1) }
+        get{ return CGSize(width: self.bounds.width * 0.15, height: self.bounds.height * 0.15) }
     }
     
     //MARK: - Initialization
@@ -154,7 +155,10 @@ open class ChromaColorPicker: UIControl {
         var hue: CGFloat = 0.0
         var alpha: CGFloat = 0.0
         
-        color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        let ok: Bool = color.getHue(&hue, saturation: &saturation, brightness: &brightness, alpha: &alpha)
+        if !ok {
+            print("ChromaColorPicker: exception <The color provided to ChromaColorPicker is not convertible to HSV>")
+        }
         let newColor = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: alpha)
         
         /* Set the slider value for the new color and update addButton */
@@ -166,12 +170,14 @@ open class ChromaColorPicker: UIControl {
         if brightness < 1.0 && saturation < 1.0 {
             /* Modifies the Shade Slider to handle adjusting to colors outside of the Chroma scope */
             shadeSlider.primaryColor = UIColor(hue: hue, saturation: saturation, brightness: brightness, alpha: 1)
-            shadeSlider.currentValue = 0
+            shadeSlider.currentValue = 0 //brightness-1 + -(saturation-1)
         } else if brightness < 1.0 { //currentValue is on the left side of the slider
             shadeSlider.currentValue = brightness-1
         }else{
             shadeSlider.currentValue = -(saturation-1)
         }
+        shadeSlider.currentValue = 1 - max(0, min(1, brightness))
+        //shadeSlider.currentValue = 1 - brightness
         shadeSlider.updateHandleLocation() //update the handle location now that the value is set
         addButton.color = newColor
         
@@ -391,7 +397,8 @@ open class ChromaColorPicker: UIControl {
     */
     func layoutHexLabel(){
         hexLabel.frame = CGRect(x: 0, y: 0, width: addButton.bounds.width*1.5, height: addButton.bounds.height/3)
-        hexLabel.center = CGPoint(x: self.bounds.midX, y: (addButton.frame.origin.y + (padding + handleView.frame.height/2 + stroke/2))/1.75) //Divided by 1.75 not 2 to make it a bit lower
+        let paddingAdjusted = (padding + handleView.frame.height/2 + stroke/2)
+        hexLabel.center = CGPoint(x: self.bounds.midX, y: (addButton.frame.origin.y + paddingAdjusted)/1.75) //Divided by 1.75 not 2 to make it a bit lower
         hexLabel.font = UIFont(name: "Menlo-Regular", size: hexLabel.bounds.height)
     }
     
@@ -408,7 +415,7 @@ open class ChromaColorPicker: UIControl {
         let deltaX = pointRight.x - pointLeft.x //distance on circle between points at 7pi/6 and 11pi/6
         
 
-        let sliderSize = CGSize(width: deltaX * 0.75, height: 0.08 * (bounds.height - padding*2))//bounds.height
+        let sliderSize = CGSize(width: deltaX * 0.75, height: 0.12 * (bounds.height - padding*2))//bounds.height
         shadeSlider.frame = CGRect(x: bounds.midX - sliderSize.width/2, y: pointLeft.y - sliderSize.height/2, width: sliderSize.width, height: sliderSize.height)
         shadeSlider.handleCenterX = shadeSlider.bounds.width/2 //set handle starting position
         shadeSlider.layoutLayerFrames() //call sliders' layout function
@@ -430,6 +437,7 @@ open class ChromaColorPicker: UIControl {
     func updateCurrentColor(_ color: UIColor){
         currentColor = color
         addButton.color = color
+        self.delegate?.colorPickerDidChangeColor(self, color: color)
         self.sendActions(for: .valueChanged)
     }
     

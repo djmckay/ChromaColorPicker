@@ -41,10 +41,15 @@ class ViewController: UIViewController {
         //colorPicker.shadeSlider.hidden = true
         
         self.view.addSubview(colorPicker)
+        colorPicker.adjustToColor(.black)
     }
 }
 
 extension ViewController: ChromaColorPickerDelegate{
+    func colorPickerDidChangeColor(_ colorPicker: ChromaColorPicker, color: UIColor) {
+        
+    }
+    
     func colorPickerDidChooseColor(_ colorPicker: ChromaColorPicker, color: UIColor) {
         //Set color for the display view
         colorDisplayView.backgroundColor = color
